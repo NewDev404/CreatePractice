@@ -1,36 +1,36 @@
-clase AdaptadorDeVehículo(
- val privado onItemClick: (Vehículo) -> Unidad
-) : ListAdapter<Vehículo, VehicleAdapter.VehicleViewHolder>(DiffCallback()) {
+class VehicleAdapter(
+    private val onItemClick: (Vehicle) -> Unit
+) : ListAdapter<Vehicle, VehicleAdapter.VehicleViewHolder>(DiffCallback()) {
 
- anular la diversidad enCreateViewHolder (padre: ViewGroup, viewType: Int): VehicleViewHolder {
- val binding = ItemVehicleBinding.inflate(
- LayoutInflater.from(parent.context), padre, falso
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VehicleViewHolder {
+        val binding = ItemVehicleBinding.inflate(
+            LayoutInflater.from(parent.context), parent, false
         )
- devuelve VehicleViewHolder (enlace)
+        return VehicleViewHolder(binding)
     }
 
- anular la diversidad enBindViewHolder(holder: VehicleViewHolder, posición: Int) {
- holder.bind(getItem(posición))
+    override fun onBindViewHolder(holder: VehicleViewHolder, position: Int) {
+        holder.bind(getItem(position))
     }
 
- clase interna VehicleViewHolder (enlace val privado: ItemVehicleBinding):
- RecyclerView.ViewHolder(binding.root) {
+    inner class VehicleViewHolder(private val binding: ItemVehicleBinding) :
+        RecyclerView.ViewHolder(binding.root) {
 
- fun bind(vehículo: Vehículo) {
- binding.txtVehicleName.text = nombre del vehículo
- binding.txtBrand.text = vehículo.marca
- binding.txtLicensePlate.text = vehicle.licensePlate
+        fun bind(vehicle: Vehicle) {
+            binding.txtVehicleName.text = vehicle.name
+            binding.txtBrand.text = vehicle.brand
+            binding.txtLicensePlate.text = vehicle.licensePlate
 
- // Si tienes imágenes juego, puedes cargas con Glide o Coil
+            // Si tienes imágenes luego, puedes cargarlas con Glide o Coil
 
- enlace.root.setOnClickListener {
- onItemClick(vehículo)
+            binding.root.setOnClickListener {
+                onItemClick(vehicle)
             }
         }
     }
 
- clase DiffCallback: DiffUtil.ItemCallback<Vehículo>() {
- anular la diversidad areItemsTheSame(oldItem: Vehículo, newItem: Vehículo) = oldItem.id == newItem.id
- anular la diversidad areContentsTheSame(artículo antiguo: Vehículo, artículo nuevo: Vehículo) = artículo antiguo == artículo nuevo
+    class DiffCallback : DiffUtil.ItemCallback<Vehicle>() {
+        override fun areItemsTheSame(oldItem: Vehicle, newItem: Vehicle) = oldItem.id == newItem.id
+        override fun areContentsTheSame(oldItem: Vehicle, newItem: Vehicle) = oldItem == newItem
     }
 }
