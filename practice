@@ -1,0 +1,36 @@
+clase AdaptadorDeVehículo(
+ val privado onItemClick: (Vehículo) -> Unidad
+) : ListAdapter<Vehículo, VehicleAdapter.VehicleViewHolder>(DiffCallback()) {
+
+ anular la diversidad enCreateViewHolder (padre: ViewGroup, viewType: Int): VehicleViewHolder {
+ val binding = ItemVehicleBinding.inflate(
+ LayoutInflater.from(parent.context), padre, falso
+        )
+ devuelve VehicleViewHolder (enlace)
+    }
+
+ anular la diversidad enBindViewHolder(holder: VehicleViewHolder, posición: Int) {
+ holder.bind(getItem(posición))
+    }
+
+ clase interna VehicleViewHolder (enlace val privado: ItemVehicleBinding):
+ RecyclerView.ViewHolder(binding.root) {
+
+ fun bind(vehículo: Vehículo) {
+ binding.txtVehicleName.text = nombre del vehículo
+ binding.txtBrand.text = vehículo.marca
+ binding.txtLicensePlate.text = vehicle.licensePlate
+
+ // Si tienes imágenes juego, puedes cargas con Glide o Coil
+
+ enlace.root.setOnClickListener {
+ onItemClick(vehículo)
+            }
+        }
+    }
+
+ clase DiffCallback: DiffUtil.ItemCallback<Vehículo>() {
+ anular la diversidad areItemsTheSame(oldItem: Vehículo, newItem: Vehículo) = oldItem.id == newItem.id
+ anular la diversidad areContentsTheSame(artículo antiguo: Vehículo, artículo nuevo: Vehículo) = artículo antiguo == artículo nuevo
+    }
+}
