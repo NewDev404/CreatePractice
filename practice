@@ -1,107 +1,109 @@
+package com.tuapp.features.vehicle_details
+
+import com.google.firebase.database.*
+
+class VehicleDetailsRepository {
+
+    private val databaseRef: DatabaseReference =
+        FirebaseDatabase.getInstance().getReference("vehicles")
+
+    fun getSensorData(
+        vehicleId: String,
+        callback: (SensorData?) -> Unit
+    ) {
+        databaseRef.child(vehicleId).child("sensors")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val data = snapshot.getValue(SensorData::class.java)
+                    callback(data)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    callback(null)
+                }
+            })
+    }
+}
+
+OTRO
+
+package com.tuapp.features.vehicle_details
+
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+
+class VehicleDetailsViewModel : ViewModel() {
+
+    private val repository = VehicleDetailsRepository()
+
+    private val _sensorData = MutableLiveData<SensorData?>()
+    val sensorData: LiveData<SensorData?> get() = _sensorData
+
+    fun loadSensorData(vehicleId: String) {
+        repository.getSensorData(vehicleId) { data ->
+            _sensorData.postValue(data)
+        }
+    }
+}
+
+OTRO
+
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
     <LinearLayout 
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-        <TextView
-            android:id="@+id/text_vehicle_name"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Nombre del Vehículo"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+        <TextView android:id="@+id/text_vehicle_name" android:text="Nombre del vehículo" />
+        <TextView android:id="@+id/text_voltage" android:text="Voltaje:" />
+        <TextView android:id="@+id/text_temperature" android:text="Temperatura:" />
+        <TextView android:id="@+id/text_level_water" android:text="Nivel Agua:" />
+        <TextView android:id="@+id/text_distance_water" android:text="Distancia Agua:" />
+        <TextView android:id="@+id/text_level_fuel" android:text="Nivel Combustible:" />
+        <TextView android:id="@+id/text_distance_fuel" android:text="Distancia Combustible:" />
 
-        <TextView
-            android:id="@+id/text_brand"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Marca" />
-
-        <TextView
-            android:id="@+id/text_model"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Modelo" />
-
-        <TextView
-            android:id="@+id/text_year"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Año" />
-
-        <TextView
-            android:id="@+id/text_temperature"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Temperatura del Motor" />
-
-        <TextView
-            android:id="@+id/text_fuel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Nivel de Combustible" />
-
-        <TextView
-            android:id="@+id/text_oil"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Presión de Aceite" />
     </LinearLayout>
 </ScrollView>
+
+OTRO
 
 package com.tuapp.features.vehicle_details
 
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import com.google.firebase.database.*
-import com.tuapp.data.model.Vehicle
-import com.tuapp.R
-import kotlinx.android.synthetic.main.activity_vehicle_details.*
+import com.tuapp.databinding.ActivityVehicleDetailsBinding
 
 class VehicleDetailsActivity : AppCompatActivity() {
 
-    private lateinit var database: DatabaseReference
+    private lateinit var binding: ActivityVehicleDetailsBinding
+    private val viewModel: VehicleDetailsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_vehicle_details)
+        binding = ActivityVehicleDetailsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        // Obtener ID del vehículo desde el intent
-        val vehicleId = intent.getStringExtra("vehicle_id") ?: return
+        val vehicleId = intent.getStringExtra("vehicleId") ?: return
 
-        // Conectarse a Firebase Realtime Database
-        database = FirebaseDatabase.getInstance().getReference("vehicles").child(vehicleId)
+        viewModel.loadSensorData(vehicleId)
 
-        // Escuchar datos en tiempo real
-        database.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val vehicle = snapshot.getValue(Vehicle::class.java)
-                vehicle?.let { showVehicleData(it) }
+        viewModel.sensorData.observe(this) { data ->
+            data?.let {
+                binding.textVehicleName.text = it.sensorId
+                binding.textVoltage.text = "Voltaje: ${it.voltage} V"
+                binding.textTemperature.text = "Temperatura: ${it.temperature} °C"
+                binding.textLevelWater.text = "Nivel Agua: ${it.levelWater} %"
+                binding.textDistanceWater.text = "Distancia Agua: ${it.distanceWater} cm"
+                binding.textLevelFuel.text = "Nivel Combustible: ${it.levelFuel} %"
+                binding.textDistanceFuel.text = "Distancia Combustible: ${it.distanceFuel} cm"
             }
-
-            override fun onCancelled(error: DatabaseError) {
-                // Puedes mostrar un Toast de error si lo deseas
-            }
-        })
-    }
-
-    private fun showVehicleData(vehicle: Vehicle) {
-        text_vehicle_name.text = vehicle.name
-        text_brand.text = "Marca: ${vehicle.brand}"
-        text_model.text = "Modelo: ${vehicle.model}"
-        text_year.text = "Año: ${vehicle.year}"
-        text_temperature.text = "Temperatura: ${vehicle.sensorTemperature} °C"
-        text_fuel.text = "Combustible: ${vehicle.sensorFuelLevel} %"
-        text_oil.text = "Presión de Aceite: ${vehicle.sensorOilPressure} psi"
+        }
     }
 }
-
-OTRO
-
-
