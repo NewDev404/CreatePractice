@@ -1,109 +1,143 @@
-package com.tuapp.features.vehicle_details
-
-import com.google.firebase.database.*
-
-class VehicleDetailsRepository {
-
-    private val databaseRef: DatabaseReference =
-        FirebaseDatabase.getInstance().getReference("vehicles")
-
-    fun getSensorData(
-        vehicleId: String,
-        callback: (SensorData?) -> Unit
-    ) {
-        databaseRef.child(vehicleId).child("sensors")
-            .addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val data = snapshot.getValue(SensorData::class.java)
-                    callback(data)
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    callback(null)
-                }
-            })
-    }
-}
-
-OTRO
-
-package com.tuapp.features.vehicle_details
+package com.tuapp.data.repository
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.google.firebase.database.*
+import com.tuapp.model.Vehicle
+
+class VehicleListRepository {
+
+    private val databaseRef: DatabaseReference = FirebaseDatabase.getInstance().getReference("vehicles")
+
+    fun getVehicleList(): LiveData<List<Vehicle>> {
+        val vehicleListLiveData = MutableLiveData<List<Vehicle>>()
+
+        databaseRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val vehicleList = mutableListOf<Vehicle>()
+                for (child in snapshot.children) {
+                    val vehicle = child.getValue(Vehicle::class.java)
+                    vehicle?.let { vehicleList.add(it) }
+                }
+                vehicleListLiveData.postValue(vehicleList)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                vehicleListLiveData.postValue(emptyList()) // En caso de error
+            }
+        })
+
+        return vehicleListLiveData
+    }
+}
+
+OTRO
+
+package com.tuapp.features.vehicle_list
+
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
+import com.tuapp.data.repository.VehicleListRepository
+import com.tuapp.model.Vehicle
 
-class VehicleDetailsViewModel : ViewModel() {
+class VehicleListViewModel : ViewModel() {
 
-    private val repository = VehicleDetailsRepository()
+    private val repository = VehicleListRepository()
 
-    private val _sensorData = MutableLiveData<SensorData?>()
-    val sensorData: LiveData<SensorData?> get() = _sensorData
+    fun getVehicleList(): LiveData<List<Vehicle>> {
+        return repository.getVehicleList()
+    }
+}
 
-    fun loadSensorData(vehicleId: String) {
-        repository.getSensorData(vehicleId) { data ->
-            _sensorData.postValue(data)
+OTRO
+
+package com.tuapp.features.vehicle_list
+
+import android.content.Intent
+import android.os.Bundle
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.tuapp.databinding.ActivityVehicleListBinding
+import com.tuapp.features.vehicle_details.VehicleDetailsActivity
+import com.tuapp.model.Vehicle
+
+class VehicleListActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityVehicleListBinding
+    private val viewModel: VehicleListViewModel by viewModels()
+    private lateinit var adapter: VehicleListAdapter
+    private val vehicleList = mutableListOf<Vehicle>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityVehicleListBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        adapter = VehicleListAdapter(vehicleList) { vehicle ->
+            val intent = Intent(this, VehicleDetailsActivity::class.java)
+            intent.putExtra("vehicleId", vehicle.vehicleId)
+            startActivity(intent)
+        }
+
+        binding.recyclerViewVehicles.layoutManager = LinearLayoutManager(this)
+        binding.recyclerViewVehicles.adapter = adapter
+
+        // Observamos los datos
+        viewModel.getVehicleList().observe(this) { list ->
+            vehicleList.clear()
+            vehicleList.addAll(list)
+            adapter.notifyDataSetChanged()
         }
     }
 }
 
 OTRO
 
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+package com.tuapp.features.vehicle_list
 
-    <LinearLayout 
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import androidx.recyclerview.widget.RecyclerView
+import com.tuapp.databinding.ItemVehicleBinding
+import com.tuapp.model.Vehicle
 
-        <TextView android:id="@+id/text_vehicle_name" android:text="Nombre del vehículo" />
-        <TextView android:id="@+id/text_voltage" android:text="Voltaje:" />
-        <TextView android:id="@+id/text_temperature" android:text="Temperatura:" />
-        <TextView android:id="@+id/text_level_water" android:text="Nivel Agua:" />
-        <TextView android:id="@+id/text_distance_water" android:text="Distancia Agua:" />
-        <TextView android:id="@+id/text_level_fuel" android:text="Nivel Combustible:" />
-        <TextView android:id="@+id/text_distance_fuel" android:text="Distancia Combustible:" />
+class VehicleListAdapter(
+    private val vehicleList: List<Vehicle>,
+    private val onItemClick: (Vehicle) -> Unit
+) : RecyclerView.Adapter<VehicleListHolder>() {
 
-    </LinearLayout>
-</ScrollView>
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VehicleListHolder {
+        val binding = ItemVehicleBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return VehicleListHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: VehicleListHolder, position: Int) {
+        val vehicle = vehicleList[position]
+        holder.bind(vehicle)
+        holder.itemView.setOnClickListener {
+            onItemClick(vehicle)
+        }
+    }
+
+    override fun getItemCount(): Int = vehicleList.size
+}
 
 OTRO
 
-package com.tuapp.features.vehicle_details
+package com.tuapp.features.vehicle_list
 
-import android.os.Bundle
-import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
-import com.tuapp.databinding.ActivityVehicleDetailsBinding
+import androidx.recyclerview.widget.RecyclerView
+import com.tuapp.databinding.ItemVehicleBinding
+import com.tuapp.model.Vehicle
 
-class VehicleDetailsActivity : AppCompatActivity() {
+class VehicleListHolder(
+    private val binding: ItemVehicleBinding
+) : RecyclerView.ViewHolder(binding.root) {
 
-    private lateinit var binding: ActivityVehicleDetailsBinding
-    private val viewModel: VehicleDetailsViewModel by viewModels()
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityVehicleDetailsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        val vehicleId = intent.getStringExtra("vehicleId") ?: return
-
-        viewModel.loadSensorData(vehicleId)
-
-        viewModel.sensorData.observe(this) { data ->
-            data?.let {
-                binding.textVehicleName.text = it.sensorId
-                binding.textVoltage.text = "Voltaje: ${it.voltage} V"
-                binding.textTemperature.text = "Temperatura: ${it.temperature} °C"
-                binding.textLevelWater.text = "Nivel Agua: ${it.levelWater} %"
-                binding.textDistanceWater.text = "Distancia Agua: ${it.distanceWater} cm"
-                binding.textLevelFuel.text = "Nivel Combustible: ${it.levelFuel} %"
-                binding.textDistanceFuel.text = "Distancia Combustible: ${it.distanceFuel} cm"
-            }
-        }
+    fun bind(vehicle: Vehicle) {
+        binding.textVehicleName.text = vehicle.name
+        binding.textVehicleType.text = vehicle.type
+        // Puedes agregar más campos si hay más atributos como marca, año, etc.
     }
 }
